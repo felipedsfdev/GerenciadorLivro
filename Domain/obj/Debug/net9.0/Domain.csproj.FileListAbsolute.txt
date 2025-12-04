@@ -1,0 +1,11 @@
+D:\ProvaExame\GerenciadorLivros\Domain\bin\Debug\net9.0\Domain.deps.json
+D:\ProvaExame\GerenciadorLivros\Domain\bin\Debug\net9.0\Domain.dll
+D:\ProvaExame\GerenciadorLivros\Domain\bin\Debug\net9.0\Domain.pdb
+D:\ProvaExame\GerenciadorLivros\Domain\obj\Debug\net9.0\Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\ProvaExame\GerenciadorLivros\Domain\obj\Debug\net9.0\Domain.AssemblyInfoInputs.cache
+D:\ProvaExame\GerenciadorLivros\Domain\obj\Debug\net9.0\Domain.AssemblyInfo.cs
+D:\ProvaExame\GerenciadorLivros\Domain\obj\Debug\net9.0\Domain.csproj.CoreCompileInputs.cache
+D:\ProvaExame\GerenciadorLivros\Domain\obj\Debug\net9.0\Domain.dll
+D:\ProvaExame\GerenciadorLivros\Domain\obj\Debug\net9.0\refint\Domain.dll
+D:\ProvaExame\GerenciadorLivros\Domain\obj\Debug\net9.0\Domain.pdb
+D:\ProvaExame\GerenciadorLivros\Domain\obj\Debug\net9.0\ref\Domain.dll
