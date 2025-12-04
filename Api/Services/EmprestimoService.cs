@@ -1,3 +1,4 @@
+using Api.Exceptions;
 using Domain;
 using Repository;
 
@@ -5,94 +6,124 @@ namespace Api.Services
 {
     public class EmprestimoService
     {
-        private readonly ILivroRepository _livroRepo;
-        private readonly IUsuarioRepository _usuarioRepo;
-        private readonly IEmprestimoRepository _emprestimoRepo;
-        private readonly IMultaRepository _multaRepo;
+        private readonly ILivroRepository _livroRepository;
+        private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IEmprestimoRepository _emprestimoRepository;
+        private readonly IMultaRepository _multaRepository;
 
         public EmprestimoService(
-            ILivroRepository livroRepo,
-            IUsuarioRepository usuarioRepo,
-            IEmprestimoRepository emprestimoRepo,
-            IMultaRepository multaRepo)
+            ILivroRepository livroRepository,
+            IUsuarioRepository usuarioRepository,
+            IEmprestimoRepository emprestimoRepository,
+            IMultaRepository multaRepository)
         {
-            _livroRepo = livroRepo;
-            _usuarioRepo = usuarioRepo;
-            _emprestimoRepo = emprestimoRepo;
-            _multaRepo = multaRepo;
+            _livroRepository = livroRepository;
+            _usuarioRepository = usuarioRepository;
+            _emprestimoRepository = emprestimoRepository;
+            _multaRepository = multaRepository;
         }
 
-        public async Task<Emprestimo> RegistrarEmprestimo(string isbn, int usuarioId)
+
+        // REGISTRAR EMPRÉSTIMO
+  
+        public async Task RegistrarEmprestimo(string isbn, int usuarioId)
         {
-            var livro = await _livroRepo.GetByIsbnAsync(isbn)
-                ?? throw new Exception("Livro não encontrado.");
+            // 1) Validar livro
+            var livro = await _livroRepository.GetByIsbnAsync(isbn);
+            if (livro == null)
+                throw new RegraNegocioException("Livro não encontrado.");
 
             if (livro.Status != "DISPONIVEL")
-                throw new Exception("Livro não está disponível.");
+                throw new RegraNegocioException("Livro não está disponível para empréstimo.");
 
-            var usuario = await _usuarioRepo.GetByIdAsync(usuarioId)
-                ?? throw new Exception("Usuário não encontrado.");
+            // 2) Validar usuário
+            var usuario = await _usuarioRepository.GetByIdAsync(usuarioId);
+            if (usuario == null)
+                throw new RegraNegocioException("Usuário não encontrado.");
 
-            var ativos = await _usuarioRepo.CountEmprestimosAtivosAsync(usuarioId);
+            // 3) Bloqueio por multa pendente
+            var emprestimosUsuario = await _emprestimoRepository.GetByUsuarioAsync(usuarioId);
+            foreach (var emp in emprestimosUsuario)
+            {
+                var multa = await _multaRepository.GetByEmprestimoIdAsync(emp.Id);
+                if (multa != null && multa.Status == "PENDENTE")
+                {
+                    throw new UsuarioInadimplenteException(
+                        "Usuário possui multa pendente e não pode realizar novos empréstimos.");
+                }
+            }
+
+            // 4) Limite de 3 empréstimos ativos
+            var ativos = await _usuarioRepository.CountEmprestimosAtivosAsync(usuarioId);
             if (ativos >= 3)
-                throw new Exception("Usuário já possui 3 empréstimos ativos.");
+                throw new RegraNegocioException("Usuário já possui 3 empréstimos ativos.");
 
-            int prazo = usuario.Tipo.ToUpper() == "PROFESSOR" ? 14 : 7;
+            // 5) Definir prazo por tipo de usuário
+            int prazoDias = usuario.Tipo.ToUpper() == "PROFESSOR" ? 14 : 7;
 
             var emprestimo = new Emprestimo
             {
                 IsbnLivro = isbn,
                 IdUsuario = usuarioId,
                 DataEmprestimo = DateTime.UtcNow,
-                DataPrevistaDevolucao = DateTime.UtcNow.AddDays(prazo),
+                DataPrevistaDevolucao = DateTime.UtcNow.AddDays(prazoDias),
                 Status = "ATIVO"
             };
 
-            await _emprestimoRepo.AddAsync(emprestimo);
+            await _emprestimoRepository.AddAsync(emprestimo);
 
+            // 6) Atualizar status do livro para EMPRESTADO
             livro.Status = "EMPRESTADO";
-            await _livroRepo.UpdateAsync(livro);
-
-            return emprestimo;
+            await _livroRepository.UpdateAsync(livro);
         }
 
+        // --------------------------------------------------------------------
+        // REGISTRAR DEVOLUÇÃO
+        // --------------------------------------------------------------------
         public async Task RegistrarDevolucao(int emprestimoId)
         {
-            var emp = await _emprestimoRepo.GetByIdAsync(emprestimoId)
-                ?? throw new Exception("Empréstimo não encontrado.");
+            var emprestimo = await _emprestimoRepository.GetByIdAsync(emprestimoId);
 
-            if (emp.Status != "ATIVO")
-                throw new Exception("Este empréstimo não está ativo.");
+            if (emprestimo == null)
+                throw new EmprestimoNaoEncontradoException("Empréstimo não encontrado.");
 
-            emp.DataRealDevolucao = DateTime.UtcNow;
+            if (emprestimo.Status != "ATIVO")
+                throw new RegraNegocioException("Não é possível devolver um empréstimo que não está ativo.");
 
-            // Cálculo da multa
-            if (emp.DataRealDevolucao > emp.DataPrevistaDevolucao)
+            emprestimo.DataRealDevolucao = DateTime.UtcNow;
+
+            // 1) Verifica atraso
+            if (emprestimo.DataRealDevolucao > emprestimo.DataPrevistaDevolucao)
             {
-                int atraso = (emp.DataRealDevolucao.Value - emp.DataPrevistaDevolucao).Days;
-                decimal valor = atraso * 1m;
+                int diasAtraso = (emprestimo.DataRealDevolucao.Value.Date - emprestimo.DataPrevistaDevolucao.Date).Days;
 
-                await _multaRepo.AddAsync(new Multa
+                if (diasAtraso > 0)
                 {
-                    IdEmprestimo = emprestimoId,
-                    Valor = valor,
-                    Status = "PENDENTE"
-                });
+                    var multa = new Multa
+                    {
+                        IdEmprestimo = emprestimo.Id,
+                        Valor = diasAtraso * 1.0m,  // R$ 1,00 por dia
+                        Status = "PENDENTE"
+                    };
 
-                emp.Status = "ATRASADO";
+                    await _multaRepository.AddAsync(multa);
+                }
+
+                emprestimo.Status = "ATRASADO";
             }
             else
             {
-                emp.Status = "FINALIZADO";
+                emprestimo.Status = "FINALIZADO";
             }
 
-            await _emprestimoRepo.UpdateAsync(emp);
+            await _emprestimoRepository.UpdateAsync(emprestimo);
 
-            var livro = await _livroRepo.GetByIsbnAsync(emp.IsbnLivro);
+            // 2) Atualizar livro para DISPONIVEL
+            var livro = await _livroRepository.GetByIsbnAsync(emprestimo.IsbnLivro);
             if (livro != null)
             {
                 livro.Status = "DISPONIVEL";
-                await _livroRepo.UpdateAsync(livro);
+                await _livroRepository.UpdateAsync(livro);
             }
         }
     }
