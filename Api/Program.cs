@@ -1,3 +1,4 @@
+using Api.Services;
 using Microsoft.Data.Sqlite;
 using Repository;
 
@@ -5,6 +6,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
 builder.Services.AddControllers();
+builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddScoped<LivroService>();
+builder.Services.AddScoped<EmprestimoService>();
+builder.Services.AddScoped<MultaService>();
+builder.Services.AddScoped<RelatorioService>();
+
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

@@ -35,11 +35,21 @@ namespace Repository
             using var connection = new SqliteConnection(_connectionString);
 
             const string sql = @"
-                INSERT INTO Emprestimo (ISBNLivro, UsuarioId, DataEmprestimo, DataPrevistaDevolucao, DataRealDevolucao, Status)
-                VALUES (@ISBNLivro, @UsuarioId, @DataEmprestimo, @DataPrevistaDevolucao, @DataRealDevolucao, @Status);
+                INSERT INTO Emprestimo 
+                (ISBNLivro, UsuarioId, DataEmprestimo, DataPrevistaDevolucao, DataRealDevolucao, Status)
+                VALUES 
+                (@ISBNLivro, @UsuarioId, @DataEmprestimo, @DataPrevistaDevolucao, @DataRealDevolucao, @Status);
             ";
 
-            await connection.ExecuteAsync(sql, emprestimo);
+            await connection.ExecuteAsync(sql, new
+            {
+                ISBNLivro = emprestimo.IsbnLivro,
+                UsuarioId = emprestimo.IdUsuario,
+                DataEmprestimo = emprestimo.DataEmprestimo.ToString("yyyy-MM-dd"),
+                DataPrevistaDevolucao = emprestimo.DataPrevistaDevolucao.ToString("yyyy-MM-dd"),
+                DataRealDevolucao = emprestimo.DataRealDevolucao?.ToString("yyyy-MM-dd"),
+                Status = emprestimo.Status
+            });
         }
 
         public async Task UpdateAsync(Emprestimo emprestimo)
@@ -57,7 +67,16 @@ namespace Repository
                 WHERE Id = @Id;
             ";
 
-            await connection.ExecuteAsync(sql, emprestimo);
+            await connection.ExecuteAsync(sql, new
+            {
+                Id = emprestimo.Id,
+                ISBNLivro = emprestimo.IsbnLivro,
+                UsuarioId = emprestimo.IdUsuario,
+                DataEmprestimo = emprestimo.DataEmprestimo.ToString("yyyy-MM-dd"),
+                DataPrevistaDevolucao = emprestimo.DataPrevistaDevolucao.ToString("yyyy-MM-dd"),
+                DataRealDevolucao = emprestimo.DataRealDevolucao?.ToString("yyyy-MM-dd"),
+                Status = emprestimo.Status
+            });
         }
 
         public async Task<IEnumerable<Emprestimo>> GetAtrasadosAsync()

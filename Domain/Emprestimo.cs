@@ -7,7 +7,7 @@ namespace Domain
         public int IdUsuario { get; set; }
         public DateTime DataEmprestimo { get; set; }
         public DateTime DataPrevistaDevolucao { get; set; }
-        public DateTime? DataRealDevolucao { get; set; }        // opcional (nullable)
+        public DateTime? DataRealDevolucao { get; set; }        
         public string Status { get; set; } = string.Empty;      // ATIVO, FINALIZADO, ATRASADO
     }
 }
