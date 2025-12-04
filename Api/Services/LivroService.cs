@@ -1,3 +1,4 @@
+using Api.Exceptions;
 using Domain;
 using Repository;
 
@@ -5,37 +6,63 @@ namespace Api.Services
 {
     public class LivroService
     {
-        private readonly ILivroRepository _livroRepo;
+        private readonly ILivroRepository _livroRepository;
 
-        public LivroService(ILivroRepository livroRepo)
+        public LivroService(ILivroRepository livroRepository)
         {
-            _livroRepo = livroRepo;
+            _livroRepository = livroRepository;
         }
 
-        public Task<IEnumerable<Livro>> ListarTodos()
-            => _livroRepo.GetAllAsync();
-
-        public async Task<Livro> CriarLivro(Livro livro)
+        // Criar livro com validação
+        public async Task CadastrarLivroAsync(Livro livro)
         {
+            // 1. Verificar se ISBN já existe
+            var existente = await _livroRepository.GetByIsbnAsync(livro.ISBN);
+            if (existente != null)
+            {
+                throw new RegraNegocioException("Já existe um livro cadastrado com esse ISBN.");
+            }
+
+            // 2. Definir data e status
+            livro.DataCadastro = DateTime.Now;
             livro.Status = "DISPONIVEL";
-            livro.DataCadastro = DateTime.UtcNow;
-            await _livroRepo.AddAsync(livro);
-            return livro;
+
+            // 3. Salvar
+            await _livroRepository.AddAsync(livro);
         }
 
-        public Task<Livro?> ObterPorISBN(string isbn)
-            => _livroRepo.GetByIsbnAsync(isbn);
-
-        public async Task AtualizarStatus(string isbn, string novoStatus)
+        // Listar todos
+        public async Task<IEnumerable<Livro>> ListarLivrosAsync()
         {
-            var livro = await _livroRepo.GetByIsbnAsync(isbn)
-                ?? throw new Exception("Livro não encontrado.");
+            return await _livroRepository.GetAllAsync();
+        }
 
-            if (livro.Status == "EMPRESTADO" && novoStatus == "RESERVADO")
-                throw new Exception("Livro emprestado não pode ser reservado.");
+        // Buscar por ISBN
+        public async Task<Livro?> BuscarPorIsbnAsync(string isbn)
+        {
+            return await _livroRepository.GetByIsbnAsync(isbn);
+        }
+
+        // Atualizar status
+        public async Task AtualizarStatusAsync(string isbn, string novoStatus)
+        {
+            var livro = await _livroRepository.GetByIsbnAsync(isbn);
+            if (livro == null)
+                throw new RegraNegocioException("Livro não encontrado.");
 
             livro.Status = novoStatus;
-            await _livroRepo.UpdateAsync(livro);
+
+            await _livroRepository.UpdateAsync(livro);
+        }
+
+        // Remover livro
+        public async Task RemoverAsync(string isbn)
+        {
+            var livro = await _livroRepository.GetByIsbnAsync(isbn);
+            if (livro == null)
+                throw new RegraNegocioException("Livro não encontrado.");
+
+            await _livroRepository.DeleteAsync(isbn);
         }
     }
 }

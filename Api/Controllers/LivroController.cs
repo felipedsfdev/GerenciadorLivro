@@ -1,3 +1,4 @@
+using Api.Exceptions;
 using Api.Services;
 using Domain;
 using Microsoft.AspNetCore.Mvc;
@@ -8,38 +9,55 @@ namespace Api.Controllers
     [Route("api/livros")]
     public class LivroController : ControllerBase
     {
-        private readonly LivroService _service;
+        private readonly LivroService _livroService;
 
-        public LivroController(LivroService service)
+        public LivroController(LivroService livroService)
         {
-            _service = service;
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            return Ok(await _service.ListarTodos());
-        }
-
-        [HttpGet("{isbn}")]
-        public async Task<IActionResult> GetByIsbn(string isbn)
-        {
-            var livro = await _service.ObterPorISBN(isbn);
-            return livro == null ? NotFound() : Ok(livro);
+            _livroService = livroService;
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(Livro livro)
+        public async Task<IActionResult> Criar(Livro livro)
         {
-            var created = await _service.CriarLivro(livro);
-            return CreatedAtAction(nameof(GetByIsbn), new { isbn = livro.ISBN }, created);
+            try
+            {
+                await _livroService.CadastrarLivroAsync(livro);
+                return Ok("Livro cadastrado com sucesso.");
+            }
+            catch (RegraNegocioException ex)
+            {
+                return BadRequest(new { erro = ex.Message });
+            }
         }
 
-        [HttpPut("{isbn}/status")]
-        public async Task<IActionResult> UpdateStatus(string isbn, [FromBody] string novoStatus)
+        [HttpGet]
+        public async Task<IActionResult> Listar()
         {
-            await _service.AtualizarStatus(isbn, novoStatus);
-            return NoContent();
+            return Ok(await _livroService.ListarLivrosAsync());
+        }
+
+        [HttpGet("{isbn}")]
+        public async Task<IActionResult> Buscar(string isbn)
+        {
+            var livro = await _livroService.BuscarPorIsbnAsync(isbn);
+            if (livro == null)
+                return NotFound();
+
+            return Ok(livro);
+        }
+
+        [HttpDelete("{isbn}")]
+        public async Task<IActionResult> Remover(string isbn)
+        {
+            try
+            {
+                await _livroService.RemoverAsync(isbn);
+                return Ok("Livro removido.");
+            }
+            catch (RegraNegocioException ex)
+            {
+                return BadRequest(new { erro = ex.Message });
+            }
         }
     }
 }
