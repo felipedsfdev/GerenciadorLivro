@@ -61,3 +61,8 @@ Abra seu terminal ou prompt de comando e navegue até o diretório do projeto on
 - dotnet run
 - Acesse localhost:5291/swagger
 - E teste suas requisições!!
+<img width="533" height="163" alt="Captura de tela 2025-12-04 204911" src="https://github.com/user-attachments/assets/a51da39f-61d9-46dd-9c05-18571307af76" />
+<img width="602" height="195" alt="Captura de tela 2025-12-04 204811" src="https://github.com/user-attachments/assets/02331f59-598a-499a-ab4e-f1bb6dda1b09" />
+<img width="490" height="112" alt="Captura de tela 2025-12-04 204500" src="https://github.com/user-attachments/assets/144bdc5d-20ec-43ab-8c36-5046d324d257" />
+
+  
